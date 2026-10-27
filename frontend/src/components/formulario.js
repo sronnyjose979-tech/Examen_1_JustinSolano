@@ -26,4 +26,54 @@ const $btnGuardar = document.querySelector("#btn-guardar");
  */
 export const iniciarFormulario = ({ alGuardar }) => {
   // TODO
+  listarCategorias().then((respuesta) => {
+    for (const categoria of respuesta.data) {
+      const opcion = document.createElement("option");
+      opcion.value = categoria.id;
+      opcion.textContent = categoria.nombre;
+      $selectCategoria.appendChild(opcion);
+    }
+  }).catch(() => {
+    mostrarMensaje("error", "No fue posible cargar las categorías.");
+  });
+
+  $form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    if ($btnGuardar.disabled) return;
+
+    $form.querySelectorAll("p[data-error]").forEach((elemento) => {
+      elemento.textContent = "";
+    });
+    $form.querySelectorAll("[aria-invalid]").forEach((campo) => {
+      campo.removeAttribute("aria-invalid");
+    });
+
+    const datos = Object.fromEntries(new FormData($form));
+    datos.categoria_id = Number(datos.categoria_id);
+    datos.costo_interno = Number(datos.costo_interno);
+
+    const textoOriginal = $btnGuardar.textContent;
+    $btnGuardar.disabled = true;
+    $btnGuardar.textContent = "Guardando...";
+    try {
+      await crearEquipo(datos);
+      $form.reset();
+      mostrarMensaje("exito", `Equipo ${datos.codigo} registrado.`);
+      await alGuardar();
+    } catch (error) {
+      if (error.status === 422) {
+        for (const [nombre, mensajes] of Object.entries(error.datos.errors ?? {})) {
+          const mensaje = $form.querySelector(`p[data-error="${nombre}"]`);
+          const campo = $form.elements.namedItem(nombre);
+          if (mensaje) mensaje.textContent = mensajes[0];
+          if (campo) campo.setAttribute("aria-invalid", "true");
+        }
+      } else {
+        mostrarMensaje("error", "No fue posible guardar el equipo.");
+      }
+    } finally {
+      $btnGuardar.disabled = false;
+      $btnGuardar.textContent = textoOriginal;
+    }
+  });
 };

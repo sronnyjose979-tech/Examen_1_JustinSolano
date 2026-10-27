@@ -21,5 +21,57 @@ import { obtenerToken, olvidarSesion } from "./auth.js";
  */
 export const request = async (ruta, opciones = {}) => {
   // TODO
-  throw new Error("TODO [F1]: request() no implementado");
+  const headers = new Headers(opciones.headers || {});
+  headers.set("Accept", "application/json");
+
+  const token = obtenerToken();
+
+  if (token) {
+    headers.set("Authorization", "Bearer " + token);
+  }
+
+  let body = opciones.body;
+
+  if (body !== null && typeof body === "object" &&
+      !(body instanceof FormData)) {
+    body = JSON.stringify(body);
+    headers.set("Content-Type", "application/json");
+  }
+
+  const controlador = new AbortController();
+
+  const tiempo = setTimeout(() => {
+    controlador.abort();
+  }, TIEMPO_MAXIMO_MS);
+
+  try {
+    const respuesta = await fetch(BASE_URL + ruta, {
+      ...opciones,
+      headers: headers,
+      body: body,
+      signal: controlador.signal,
+    });
+
+    if (respuesta.status === 204) {
+      return null;
+    }
+
+    const datos = await respuesta.json().catch((error) => {
+      if (respuesta.ok) throw error;
+      return {};
+    });
+
+    if (!respuesta.ok) {
+      if (respuesta.status === 401) {
+        olvidarSesion();
+        window.location.reload();
+      }
+
+      throw new ErrorApi(respuesta.status, datos);
+    }
+
+    return datos;
+  } finally {
+    clearTimeout(tiempo);
+  }
 };

@@ -34,9 +34,60 @@ export const formatearFecha = (iso) =>
  *  - Deshabilite #btn-anterior en la primera página y #btn-siguiente en la última.
  *  - Si falla, muestre el error con mostrarMensaje("error", ...).
  */
-export const cargarPagina = async (pagina = 1) => {
-  // TODO
+
+export const cargarPagina = async (pagina) => {
+  if ($lista.getAttribute("aria-busy") === "true") return;
+  $lista.setAttribute("aria-busy", "true");
+
+  try {
+    const respuesta = await listarEquipos(pagina, POR_PAGINA);
+
+    paginaActual = respuesta.meta.current_page;
+    ultimaPagina = respuesta.meta.last_page;
+
+    $lista.replaceChildren();
+
+    for (const equipo of respuesta.data) {
+      const copia = $plantilla.content.cloneNode(true);
+      const li = copia.querySelector("li");
+
+      li.dataset.id = equipo.id;
+
+      copia.querySelector(".codigo").textContent = equipo.codigo;
+      copia.querySelector(".nombre").textContent = equipo.nombre;
+      copia.querySelector(".categoria").textContent = equipo.categoria.nombre;
+      copia.querySelector(".fecha").textContent = formatearFecha(equipo.fecha_adquisicion);
+
+      const estado = copia.querySelector(".estado");
+      estado.textContent = equipo.estado;
+      estado.dataset.estado = equipo.estado;
+
+      $lista.appendChild(copia);
+    }
+
+    if (respuesta.data.length === 0) {
+      const li = document.createElement("li");
+      li.className = "vacio";
+      li.textContent = "No hay equipos registrados.";
+      $lista.appendChild(li);
+    }
+
+    $resumen.textContent =
+      `Mostrando ${respuesta.meta.from ?? 0}–${respuesta.meta.to ?? 0} de ${respuesta.meta.total}`;
+
+    $paginaActual.textContent =
+      `Página ${paginaActual} de ${ultimaPagina}`;
+
+    $btnAnterior.disabled = paginaActual === 1;
+    $btnSiguiente.disabled = paginaActual >= ultimaPagina;
+
+  } catch (error) {
+    mostrarMensaje("error", error.message);
+  } finally {
+    $lista.setAttribute("aria-busy", "false");
+  }
 };
+
 
 /**
  * TODO [F4] Eliminación con manejo de reglas de negocio.
@@ -51,6 +102,27 @@ export const cargarPagina = async (pagina = 1) => {
  */
 const alHacerClicEnLista = async (evento) => {
   // TODO
+  const boton = evento.target.closest(".btn-eliminar");
+  if (!boton || boton.disabled || $lista.getAttribute("aria-busy") === "true") return;
+
+  const tarjeta = boton.closest("li[data-id]");
+  if (!confirm("¿Desea eliminar este equipo?")) return;
+
+  boton.disabled = true;
+  try {
+    await eliminarEquipo(tarjeta.dataset.id);
+    mostrarMensaje("exito", "Equipo eliminado.");
+    const pagina = $lista.querySelectorAll("li[data-id]").length === 1 && paginaActual > 1
+      ? paginaActual - 1
+      : paginaActual;
+    await cargarPagina(pagina);
+  } catch (error) {
+    mostrarMensaje("error", error.status === 409
+      ? error.datos.mensaje
+      : "No fue posible eliminar el equipo.");
+  } finally {
+    boton.disabled = false;
+  }
 };
 
 // Parcialmente implementado: complete el TODO de los botones de paginación.
@@ -58,6 +130,12 @@ export const iniciarListado = () => {
   $lista.addEventListener("click", alHacerClicEnLista);
 
   // TODO [F2] Conecte #btn-anterior y #btn-siguiente con cargarPagina()
+  $btnAnterior.addEventListener("click", () => {
+    if (paginaActual > 1) cargarPagina(paginaActual - 1);
+  });
+  $btnSiguiente.addEventListener("click", () => {
+    if (paginaActual < ultimaPagina) cargarPagina(paginaActual + 1);
+  });
 
   cargarPagina(1);
 };
