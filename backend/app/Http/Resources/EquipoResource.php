@@ -32,7 +32,7 @@ class EquipoResource extends JsonResource
             'codigo' => $this->codigo,
             'nombre' => $this->nombre,
             'estado' => $this->estado,
-            'fecha_adquisicion' => $this->fecha_adquisicion,
+           'fecha_adquisicion' => $this->fecha_adquisicion->format('Y-m-d') ,
             'categoria' => new CategoriaResource(
                 $this->whenLoaded('categoria')
             ),

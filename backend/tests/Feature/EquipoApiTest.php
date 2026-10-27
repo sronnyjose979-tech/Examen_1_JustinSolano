@@ -34,6 +34,12 @@ it('crea un equipo y responde 201 con el encabezado Location', function () {
 
     $respuesta->assertStatus(201)
         ->assertHeader('Location');
+        
+    $respuesta->assertJsonPath(
+    'data.fecha_adquisicion',
+    '2026-09-15'
+);
+        
 
     $this->assertDatabaseHas('equipos', [
         'codigo' => 'EQ-0001',
