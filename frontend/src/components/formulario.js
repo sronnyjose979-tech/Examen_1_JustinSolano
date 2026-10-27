@@ -50,7 +50,9 @@ export const iniciarFormulario = ({ alGuardar }) => {
 
     const datos = Object.fromEntries(new FormData($form));
     datos.categoria_id = Number(datos.categoria_id);
-    datos.costo_interno = Number(datos.costo_interno);
+    datos.costo_interno = datos.costo_interno === ""
+  ? ""
+  : Number(datos.costo_interno);
 
     const textoOriginal = $btnGuardar.textContent;
     $btnGuardar.disabled = true;
